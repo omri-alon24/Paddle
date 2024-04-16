@@ -22,6 +22,38 @@ namespace phi {
 // Common InferMeta Functions for fusion operators.
 // NOTE: The InferMeta Functions in this file are arranged in alphabetic order.
 
+void FusedMultiTransformerInferMeta(
+    const MetaTensor& x,
+    const std::vector<const MetaTensor*>& ln_scales,
+    const std::vector<const MetaTensor*>& ln_biases,
+    const std::vector<const MetaTensor*>& qkv_weights,
+    const paddle::optional<std::vector<const MetaTensor*>>& qkv_biases,
+    const paddle::optional<std::vector<const MetaTensor*>>& cache_kvs,
+    const paddle::optional<std::vector<const MetaTensor*>>& pre_caches,
+    const MetaTensor& rotary_tensor,
+    const MetaTensor& time_step,
+    const MetaTensor& seq_lengths,
+    const MetaTensor& src_mask,
+    const std::vector<const MetaTensor*>& out_linear_weights,
+    const paddle::optional<std::vector<const MetaTensor*>>& out_linear_biases,
+    const std::vector<const MetaTensor*>& ffn_ln_scales,
+    const std::vector<const MetaTensor*>& ffn_ln_biases,
+    const std::vector<const MetaTensor*>& ffn1_weights,
+    const paddle::optional<std::vector<const MetaTensor*>>& ffn1_biases,
+    const std::vector<const MetaTensor*>& ffn2_weights,
+    const paddle::optional<std::vector<const MetaTensor*>>& ffn2_biases,
+    bool pre_layer_norm,
+    float epsilon,
+    float dropout_rate,
+    int rotary_emb_dims,
+    bool is_test,
+    const std::string& dropout_implementation,
+    const std::string& act_method,
+    bool trans_qkvw,
+    int ring_id,
+    std::vector<MetaTensor*> cache_kv_outs,
+    MetaTensor* out);
+
 void AddActXPUInferMeta(const MetaTensor& x,
                         const MetaTensor& x_max,
                         const MetaTensor& y,
@@ -37,6 +69,13 @@ void AddLayernormXPUInferMeta(const MetaTensor& x,
                               int begin_norm_axis,
                               float epsilon,
                               MetaTensor* out);
+
+void GroupNormalizeSiluXPUInferMeta(const MetaTensor& x,
+                                    const MetaTensor& scale,
+                                    const MetaTensor& bias,
+                                    int groups,
+                                    float epsilon,
+                                    MetaTensor* out);
 
 void BlockMultiheadAttentionInferMeta(const MetaTensor& qkv,
                                       const MetaTensor& key_cache,
@@ -112,6 +151,26 @@ void Conv2dXPUInferMeta(const MetaTensor& x,
                         DataType out_dtype,
                         MetaTensor* out,
                         MetaTensor* out_max);
+
+void SpatialTransformerResblockXPUInferMeta(
+    const MetaTensor& x,
+    const std::vector<const MetaTensor*>& x_max,
+    const std::vector<const MetaTensor*>& conv_bias,
+    const std::vector<const MetaTensor*>& conv_filter,
+    const std::vector<const MetaTensor*>& conv_filter_max,
+    const std::vector<const MetaTensor*>& gn_bias,
+    const std::vector<const MetaTensor*>& gn_scale,
+    const std::vector<int>& dilations,
+    const std::vector<int>& paddings,
+    const std::vector<int>& strides,
+    const std::vector<float>& gn_eps,
+    const std::vector<int>& gn_groups,
+    const std::vector<int>& groups,
+    bool conv_fix,
+    bool has_silu_fc_input,
+    bool include_silu,
+    MetaTensor* out,
+    MetaTensor* out_max);
 
 void EmbeddingWithEltwiseAddXPUInferMeta(
     const std::vector<const MetaTensor*>& ids,
@@ -755,7 +814,6 @@ void FusedBiasDropoutResidualLnInferMeta(
     MetaTensor* ln_variance);
 
 void FusedBiasDropoutResidualLnGradInferMeta(
-    const MetaTensor& y_grad,
     const MetaTensor& x,
     const MetaTensor& residual,
     const MetaTensor& bias,
@@ -765,6 +823,7 @@ void FusedBiasDropoutResidualLnGradInferMeta(
     const MetaTensor& ln_variance,
     const MetaTensor& bias_dropout_residual_out,
     const MetaTensor& dropout_mask_out,
+    const MetaTensor& y_grad,
     const float dropout_rate,
     const bool is_test,
     const bool dropout_fix_seed,
@@ -830,13 +889,14 @@ void QKVAttentionXPUInferMeta(const MetaTensor& q,
                               const MetaTensor& q_max,
                               const MetaTensor& k_max,
                               const MetaTensor& v_max,
+                              const MetaTensor& qk_max,
+                              const MetaTensor& qkv_max,
                               float alpha,
                               int head_num,
                               int head_dim,
                               bool qkv_fc_fusion,
                               DataType out_dtype,
-                              MetaTensor* qkv,
-                              MetaTensor* qkv_max);
+                              MetaTensor* qkv);
 void SinePosXPUInferMeta(const MetaTensor& x,
                          const MetaTensor& y,
                          MetaTensor* out);
@@ -845,6 +905,19 @@ void RoformerRelativePosXPUInferMeta(const MetaTensor& x,
                                      const MetaTensor& cos_emb,
                                      int max_pos_len,
                                      MetaTensor* out);
+void CrossAttentionXPUInferMeta(
+    const MetaTensor& input_q,
+    const MetaTensor& input_kv,
+    const std::vector<const MetaTensor*>& fc_weight,
+    const std::vector<const MetaTensor*>& fc_weight_max,
+    const std::vector<const MetaTensor*>& fc_bias,
+    const MetaTensor& mask,
+    int head_num,
+    int head_dim,
+    float alpha,
+    DataType out_dtype,
+    MetaTensor* qkv,
+    MetaTensor* qkv_max);
 
 void MultiGruInferMeta(
     const MetaTensor& x,

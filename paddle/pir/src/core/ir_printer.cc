@@ -279,6 +279,10 @@ void IrPrinter::PrintAttributeMap(Operation* op) {
   AttributeMap attributes = op->attributes();
   std::map<std::string, Attribute, std::less<>> order_attributes(
       attributes.begin(), attributes.end());
+
+  // Filter out the callstack attribute
+  order_attributes.erase("op_callstack");
+
   os << " {";
 
   pir::detail::PrintInterleave(
@@ -352,7 +356,9 @@ void IrPrinter::PrintOpReturnType(Operation* op) {
 
 void IrPrinter::AddValueAlias(Value v, const std::string& alias) {
   const void* key = v.impl();
-  IR_ENFORCE(aliases_.find(key) == aliases_.end(), "Value already has alias");
+  PADDLE_ENFORCE_EQ(aliases_.find(key),
+                    aliases_.end(),
+                    phi::errors::InvalidArgument("Value already has alias"));
   aliases_[key] = alias;
 }
 

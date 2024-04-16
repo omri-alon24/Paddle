@@ -14,6 +14,7 @@
 
 #include "paddle/fluid/pir/dialect/distributed/ir/dist_attribute.h"
 #include "paddle/fluid/pir/dialect/distributed/ir/attribute_storage.h"
+#include "paddle/phi/core/enforce.h"
 namespace paddle {
 namespace dialect {
 ///
@@ -38,8 +39,8 @@ ProcessMeshAttribute ProcessMeshAttribute::get(
 ///
 /// \brief TensorDistAttribute interface.
 ///
-ProcessMeshAttribute TensorDistAttribute::mesh_attr() const {
-  return storage()->process_mesh;
+ProcessMeshAttribute TensorDistAttribute::process_mesh_attr() const {
+  return storage()->mesh_attr;
 }
 const std::vector<int64_t>& TensorDistAttribute::dims_mapping() const {
   return storage()->dims_mapping;
@@ -64,10 +65,65 @@ TensorDistAttribute TensorDistAttribute::get(
     ProcessMeshAttribute mesh,
     const std::vector<int64_t>& dims_mapping,
     const flat_hash_map<int64_t, phi::ReduceType>& partial_status) {
+  PADDLE_ENFORCE_NOT_NULL(mesh,
+                          common::errors::PreconditionNotMet(
+                              "Building tensor_dist_attr through a nullptr "
+                              "mesh attribute is currently not supported."));
   return Base::get(ctx, mesh, dims_mapping, partial_status);
+}
+
+///
+/// \brief OperationDistAttribute interface.
+///
+ProcessMeshAttribute OperationDistAttribute::process_mesh_attr() const {
+  return storage()->mesh_attr;
+}
+const std::vector<TensorDistAttribute>&
+OperationDistAttribute::operand_dist_attrs() const {
+  return storage()->operand_dist_attrs;
+}
+TensorDistAttribute OperationDistAttribute::operand_dist_attr(
+    uint32_t index) const {
+  return operand_dist_attrs().at(index);
+}
+uint32_t OperationDistAttribute::num_operand_dist_attrs() const {
+  return operand_dist_attrs().size();
+}
+
+const std::vector<TensorDistAttribute>&
+OperationDistAttribute::result_dist_attrs() const {
+  return storage()->result_dist_attrs;
+}
+TensorDistAttribute OperationDistAttribute::result_dist_attr(
+    uint32_t index) const {
+  return result_dist_attrs().at(index);
+}
+uint32_t OperationDistAttribute::num_result_dist_attrs() const {
+  return result_dist_attrs().size();
+}
+OperationDistAttribute OperationDistAttribute::get(
+    pir::IrContext* ctx,
+    ProcessMeshAttribute mesh,
+    const std::vector<TensorDistAttribute>& operand_dist_attrs,
+    const std::vector<TensorDistAttribute>& result_dist_attrs) {
+  for (const auto& iter : operand_dist_attrs) {
+    // NOTE: The operand dist attr maybe empty while the corresponding input is
+    // optional.
+    if (iter) {
+      PADDLE_ENFORCE_EQ(mesh,
+                        iter.process_mesh_attr(),
+                        common::errors::PreconditionNotMet(
+                            "operand_dist_attrs element's mesh(%s) not equal "
+                            "to input mesh(%s)",
+                            iter.process_mesh_attr(),
+                            mesh));
+    }
+  }
+  return Base::get(ctx, mesh, operand_dist_attrs, result_dist_attrs);
 }
 
 }  // namespace dialect
 }  // namespace paddle
 IR_DEFINE_EXPLICIT_TYPE_ID(paddle::dialect::ProcessMeshAttribute)
 IR_DEFINE_EXPLICIT_TYPE_ID(paddle::dialect::TensorDistAttribute)
+IR_DEFINE_EXPLICIT_TYPE_ID(paddle::dialect::OperationDistAttribute)
